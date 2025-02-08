@@ -1,5 +1,8 @@
 #include "router.h"
 #include <unistd.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
 
 Router::Router(int listenPort, const std::string& forwardIP, int forwardPort) {
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -13,7 +16,7 @@ Router::Router(int listenPort, const std::string& forwardIP, int forwardPort) {
     listenAddr.sin_addr.s_addr = INADDR_ANY;
     listenAddr.sin_port = htons(listenPort);
 
-    if (bind(sockfd, (struct sockaddr*)&listenAddr, sizeof(listenAddr)) < 0) {
+    if (::bind(sockfd, (struct sockaddr*)&listenAddr, sizeof(listenAddr)) < 0) {
         perror("Bind failed");
         exit(EXIT_FAILURE);
     }
