@@ -2,7 +2,7 @@
 <html>
 <head>
     <title>Router Path to Gateway</title>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy42oiMTSOJqRFK9KpJkV5Jaue_yjBchE"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCZG9ZoV7G1zWPbqsMwPEOg3EssEYQKlco"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
     
 
@@ -274,16 +274,20 @@
                     map,
                     label: {
                         text: "Start",
-                        color: "white",
-                        fontWeight: "bold"
+                        color: "black",
+                        fontWeight: "bold",
+                        fontSize: "14px"
                     },
                     icon: {
                         path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-                        scale: 5,
-                        fillColor: "#00C853",
+                        scale: 7,
+                        fillColor: "#00C853", // Bright green
                         fillOpacity: 1,
-                        strokeWeight: 1
+                        strokeColor: "#004D40", // Darker outline
+                        strokeWeight: 2
                     },
+                    zIndex: 999, // bring to front
+                    animation: google.maps.Animation.DROP,
                     title: `Start: ${start.city || "Unknown City"} (${start.ip})`
                 });
                 customMarkers.push(startMarker);
@@ -294,16 +298,20 @@
                     map,
                     label: {
                         text: "Gateway",
-                        color: "white",
-                        fontWeight: "bold"
+                        color: "black",
+                        fontWeight: "bold",
+                        fontSize: "14px"
                     },
                     icon: {
                         path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-                        scale: 5,
-                        fillColor: "#2962FF",
+                        scale: 7,
+                        fillColor: "#2962FF", // Vivid blue
                         fillOpacity: 1,
-                        strokeWeight: 1
+                        strokeColor: "#0D47A1", // Deeper blue outline
+                        strokeWeight: 2
                     },
+                    zIndex: 999,
+                    animation: google.maps.Animation.DROP,
                     title: `Gateway: ${end.city || "Unknown City"} (${end.ip})`
                 });
                 customMarkers.push(gatewayMarker);
