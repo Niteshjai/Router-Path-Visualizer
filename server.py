@@ -32,7 +32,7 @@ def load_graph_from_csv(filepath):
 
 load_graph_from_csv("Updated_DSADataset.csv")
 
-def dijkstra(start_ip, end_ip="1.99.185.142"):
+def dijkstra(start_ip, end_ip="1.108.102.183"):
     queue = [(0, start_ip, [])]
     visited = set()
 
