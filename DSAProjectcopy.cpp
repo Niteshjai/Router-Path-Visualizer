@@ -11,6 +11,7 @@ struct Edge {
 
 unordered_map<string, vector<Edge>> networkGraph;
 unordered_map<string, string> ipToCity;
+unordered_map<string, pair<double, double>> ipCoords; 
 
 
 void addConnection(const string& from, const string& to, int latency) {
@@ -18,15 +19,29 @@ void addConnection(const string& from, const string& to, int latency) {
     networkGraph[to].push_back({from, latency}); 
 }
 
+double haversine(double lat1, double lon1, double lat2, double lon2) {
+    const double R = 6371.0; // Earth radius in km
+    double dLat = (lat2 - lat1) * M_PI / 180.0;
+    double dLon = (lon2 - lon1) * M_PI / 180.0;
+
+    lat1 *= M_PI / 180.0;
+    lat2 *= M_PI / 180.0;
+
+    double a = sin(dLat / 2) * sin(dLat / 2) +
+               cos(lat1) * cos(lat2) *
+               sin(dLon / 2) * sin(dLon / 2);
+    double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    return R * c; // in kilometers
+}
+
 int heuristic(const string& a, const string& b) {
-    // Simple heuristic: count difference in IP octets
-    istringstream sa(a), sb(b);
-    string oa, ob;
-    int score = 0;
-    while (getline(sa, oa, '.') && getline(sb, ob, '.')) {
-        score += abs(stoi(oa) - stoi(ob));
+    if (ipCoords.count(a) && ipCoords.count(b)) {
+        auto [lat1, lon1] = ipCoords[a];
+        auto [lat2, lon2] = ipCoords[b];
+        double distanceKm = haversine(lat1, lon1, lat2, lon2);
+        return static_cast<int>(distanceKm * 0.02 * 1000); // Convert to ms
     }
-    return score;
+    return 0; // fallback
 }
 
 
@@ -235,9 +250,9 @@ int main() {
         getline(ss, value, ','); latency.push_back(stoi(value));
         getline(ss, value, ','); city.push_back(value);
         ipToCity[ip_address_1.back()] = city.back();
-        ipToCity[ip_address_2.back()] = city.back();  
-
-    
+        ipToCity[ip_address_2.back()] = city.back(); 
+        ipCoords[ip_address_1.back()] = {latitude.back(), longitude.back()};
+        ipCoords[ip_address_2.back()] = {latitude.back(), longitude.back()};     
     }
 
     file.close();
