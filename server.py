@@ -20,7 +20,6 @@ def load_graph_from_csv(filepath):
                 cost = float(row[4].strip())
                 city = row[5].strip() if len(row) > 5 else "Unknown"
 
-                # Build graph (undirected)
                 network_graph[src_ip].append((dst_ip, cost))
                 network_graph[dst_ip].append((src_ip, cost))
 
@@ -33,6 +32,7 @@ def load_graph_from_csv(filepath):
 load_graph_from_csv("Updated_DSADataset.csv")
 
 def dijkstra(start_ip, end_ip="1.108.102.183"):
+
     queue = [(0, start_ip, [])]
     visited = set()
 
@@ -55,6 +55,7 @@ def dijkstra(start_ip, end_ip="1.108.102.183"):
                 heapq.heappush(queue, (cost + edge_cost, neighbor, path))
 
     return []
+
 
 app = Flask(__name__)
 
