@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Router Path to Gateway</title>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy42oiMTSOJqRFK9KpJkV5Jaue_yjBchE"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    
+
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            background-color: #f0f2f5;
+            color: #333;
+        }
+
+        header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 26px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 30px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .form-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+
+        input[type="text"] {
+            flex-grow: 1;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+
+        input[type="text"]:focus {
+            border-color: #007bff;
+        }
+
+        button {
+            padding: 10px 18px;
+            font-size: 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #map {
+            width: 100%;
+            height: 600px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        #gatewayBox {
+            margin-top: 10px;
+            padding: 12px 20px;
+            background: #e3f2fd;
+            border: 1px solid #90caf9;
+            border-radius: 6px;
+            display: none;
+            font-size: 16px;
+            font-weight: 500;
+            color: #0d47a1;
+        }
+
+        @media (max-width: 600px) {
+            .form-group {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+
+            input[type="text"] {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Router Path to Gateway Visualizer</h1>
+    </header>
+
+    <div class="container">
+        <div class="form-group">
+            <input type="text" id="ip" placeholder="Enter start IP address">
+            <button onclick="showRoute()">Show Path</button>
+        </div>
+        <div id="gatewayBox"></div>
+        <div id="latencyBox"></div>
+        <div id="map"></div>
+    </div>
+
+    <script>
+        let map;
+        let allNodes = {};  
+        let allEdges = {};
+        let defaultPolylines = [];
+        let pathPolylines = [];      
+        let customMarkers = [];      
+        let currentDrawSession = 0;
+
+        async function initMap() {
+            try {
+                const response = await fetch("/map-data");
+                if (!response.ok) throw new Error("Failed to fetch map data.");
+
+                const data = await response.json();
+                console.log("Fetched map data:", data);
+
+                allNodes = data.nodes || {};  
+                allEdges = data.edges || {};
+
+                map = new google.maps.Map(document.getElementById("map"), {
+                    zoom: 4,
+                    center: { lat: 20.0, lng: 80.0 }
+                });
+
+                for (const [ip, info] of Object.entries(allNodes)) {
+                    const coord = { lat: info.lat, lng: info.lng };
+                    const city = info.city || "Unknown City";
+
+                    const marker = new google.maps.Marker({
+                        position: coord,
+                        map,
+                        title: `${city} (${ip})`
+                    });
+
+                    const infowindow = new google.maps.InfoWindow({
+                        content: `<strong>${city}</strong><br>${ip}`
+                    });
+
+                    marker.addListener("click", () => infowindow.open(map, marker));
+                }
+
+                for (const [src, connections] of Object.entries(allEdges)) {
+                    const srcCoord = allNodes[src];
+                    connections.forEach(([dst, _cost]) => {
+                        const dstCoord = allNodes[dst];
+                        if (srcCoord && dstCoord) {
+                            const line = new google.maps.Polyline({
+                                path: [
+                                    { lat: srcCoord.lat, lng: srcCoord.lng },
+                                    { lat: dstCoord.lat, lng: dstCoord.lng }
+                                ],
+                                geodesic: true,
+                                strokeColor: "#AAAAAA",
+                                strokeOpacity: 1,
+                                strokeWeight: 1,
+                                map: map
+                            });
+                            defaultPolylines.push(line);
+                        }
+                    });
+                }
+
+            } catch (error) {
+                console.error("Error initializing map:", error);
+                alert("Failed to load map data.");
+            }
+        }
+
+        let pathPolyline = null;
+        
+
+        function animateSegment(from, to, map, onComplete) {
+            const line = new google.maps.Polyline({
+                path: [from],
+                geodesic: true,
+                strokeColor: "#FF0000",
+                strokeOpacity: 1.0,
+                strokeWeight: 5,
+                map: map
+            });
+            pathPolylines.push(line);
+
+            const steps = 50;
+            let currentStep = 0;
+
+            function interpolate(a, b, t) {
+                return a + (b - a) * t;
+            }
+
+            function step() {
+                if (currentStep >= steps) {
+                    if (onComplete) onComplete();
+                    return;
+                }
+
+                const lat = interpolate(from.lat, to.lat, currentStep / steps);
+                const lng = interpolate(from.lng, to.lng, currentStep / steps);
+                line.setPath([from, { lat, lng }]);
+                currentStep++;
+                requestAnimationFrame(step);
+            }
+
+            step();
+        }
+
+
+
+        async function showRoute() {
+            const ip = document.getElementById("ip").value.trim();
+            if (!ip || !(ip in allNodes)) {
+                alert("Invalid or unknown IP address.");
+                return;
+            }
+            const drawId = ++currentDrawSession;
+
+            defaultPolylines.forEach(line => line.setMap(null));
+
+            
+            pathPolylines.forEach(line => line.setMap(null));
+            pathPolylines = [];
+
+            customMarkers.forEach(marker => marker.setMap(null));
+            customMarkers = [];
+
+            try {
+                const response = await fetch("/path", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ startIP: ip })
+                });
+
+                if (!response.ok) {
+                    const errMessage = await response.text();
+                    console.error("Server error:", errMessage);
+                    alert("Failed to retrieve path: " + errMessage);
+                    return;
+                }
+
+                const route = await response.json();  
+                if (!route || route.length === 0 || route[0].ip !== ip) {
+                    alert("Invalid path. The path must start from your IP.");
+                    return;
+                }
+
+                const bounds = new google.maps.LatLngBounds();
+
+                const start = route[0];
+                const startMarker = new google.maps.Marker({
+                    position: { lat: start.lat, lng: start.lng },
+                    map,
+                    label: {
+                        text: "Start",
+                        color: "white",
+                        fontWeight: "bold"
+                    },
+                    icon: {
+                        path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                        scale: 5,
+                        fillColor: "#00C853",
+                        fillOpacity: 1,
+                        strokeWeight: 1
+                    },
+                    title: `Start: ${start.city || "Unknown City"} (${start.ip})`
+                });
+                customMarkers.push(startMarker);
+
+                const end = route[route.length - 1];
+                const gatewayMarker = new google.maps.Marker({
+                    position: { lat: end.lat, lng: end.lng },
+                    map,
+                    label: {
+                        text: "Gateway",
+                        color: "white",
+                        fontWeight: "bold"
+                    },
+                    icon: {
+                        path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                        scale: 5,
+                        fillColor: "#2962FF",
+                        fillOpacity: 1,
+                        strokeWeight: 1
+                    },
+                    title: `Gateway: ${end.city || "Unknown City"} (${end.ip})`
+                });
+                customMarkers.push(gatewayMarker);
+
+                let i = 0;
+                function drawNextSegment() {
+                    if (i >= route.length - 1 || drawId !== currentDrawSession) return;
+
+                    const from = route[i];
+                    const to = route[i + 1];
+                    bounds.extend(from);
+                    bounds.extend(to);
+
+                    animateSegment(from, to, map, () => {
+                        if (drawId !== currentDrawSession) return;  
+                        i++;
+                        drawNextSegment();
+                    });
+
+                    [from, to].forEach(point => {
+                        const circleMarker = new google.maps.Marker({
+                            position: point,
+                            map,
+                            icon: {
+                                path: google.maps.SymbolPath.CIRCLE,
+                                scale: 5,
+                                fillColor: "#FF0000",
+                                fillOpacity: 1,
+                                strokeColor: "#ffffff",
+                                strokeWeight: 1
+                            },
+                            title: `${point.city || "Unknown City"} (${point.ip})`
+                        });
+                        customMarkers.push(circleMarker);
+                    });
+                }
+
+
+                drawNextSegment();
+                map.fitBounds(bounds);
+
+                
+                document.getElementById("gatewayBox").style.display = "block";
+                document.getElementById("gatewayBox").innerHTML = `<strong>Gateway IP:</strong> ${end.ip}`;
+
+            } catch (error) {
+                console.error("Error retrieving path:", error);
+                alert("Error retrieving path.");
+            }
+        }
+
+        window.onload = initMap;
+    </script>
+</body>
+</html>
