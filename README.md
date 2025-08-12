@@ -103,14 +103,6 @@ Open your browser and go to: [http://127.0.0.1:5000](http://127.0.0.1:5000)
 
 <img width="1886" height="910" alt="Screenshot 2025-07-23 103423" src="https://github.com/user-attachments/assets/b53d5f2c-ba22-4e41-9c95-bdfc4513b79d" />
 
-
----
-
-## 👨‍💻 Author
-
-**Nitesh Jaiswal**
-GitHub: [@Niteshjai](https://github.com/Niteshjai)
-
 ---
 
 ## 📄 License
